@@ -1,0 +1,72 @@
+/* Общий контейнер страницы */
+.RegistrationPage {
+    min-height: 100vh;             /* Занимаем всю высоту экрана */
+    background-color: #1E1E1E;     /* Тёмно-серый фон (как на картинке) */
+    display: flex;                 /* Выравниваем по центру */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Вся панель регистрации */
+.RegistrationPanel {
+    min-width: 30%;
+    background-color: #2B2B2B;     /* Фон панели */
+    border-radius: 30px;            /* Скругление углов */
+    padding: 20px;
+    width: 300px;                  /* Примерная ширина панели */
+    text-align: center;
+}
+
+/* Заголовок */
+.RegistrationTitle {
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+/* Подписи к полям */
+.RegistrationLabel {
+    color: #ffffff;
+    text-align: left;
+    margin: 10px 0px 5px 13%;
+}
+
+/* Поля ввода */
+.RegistrationInput {
+    width: 70%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 50px;
+    background-color: #4a4a4a;
+    color: #fff;
+    font-size: 14px;
+    outline:none;
+}
+
+.RegistrationInput::placeholder {
+    color: #aaa;
+}
+
+/* Кнопка */
+.RegistrationButton {
+    width: 50%;
+    padding: 10px;
+    border: none;
+    border-radius: 50px;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    background-color: #3C3C3C;
+}
+
+.RegistrationButton:hover {
+    background-color: #ffffff;
+    color: #2d2d2d;
+}
+
+.Warning{
+    color: red;
+    margin-top: 0;
+    margin-bottom: 15px;
+}

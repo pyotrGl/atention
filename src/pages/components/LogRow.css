@@ -1,0 +1,19 @@
+.LogRow {
+    color: #FFCC00;
+    display: grid;
+    grid-template-columns:25% 25% 25% 25%;
+    text-align: center;
+    padding: 1%;
+}
+
+.LogRow:hover {
+    background-color: #1E1E1E;
+}
+
+.LogTitle{
+    color: #FFCC00;
+    display: grid;
+    grid-template-columns:25% 25% 25% 25%;
+    text-align: center;
+    padding: 1%;
+}

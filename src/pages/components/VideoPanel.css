@@ -1,0 +1,18 @@
+.VideoPanel{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+.video {
+    border-radius: 10px;
+
+}
+
+.VideoCanvas{
+    position: absolute;
+    z-index: 1;
+    width: 640px;
+    height: 480px;
+}

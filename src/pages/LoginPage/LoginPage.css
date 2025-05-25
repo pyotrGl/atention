@@ -1,0 +1,65 @@
+/* Общий контейнер страницы */
+.LoginPage {
+    min-height: 100vh; /* Занимаем всю высоту экрана */
+    background-color: #1E1E1E; /* Тёмно-серый фон */
+    display: flex; /* Выравниваем по центру */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Вся панель логина */
+.LoginPanel {
+    min-width: 30%;
+    background-color: #2B2B2B; /* Фон панели */
+    border-radius: 30px; /* Скругление углов */
+    padding: 20px;
+    text-align: center;
+}
+
+/* Заголовок */
+.LoginTitle {
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+/* Подписи к полям */
+.LoginLabel {
+    color: #ffffff;
+    text-align: left;
+    margin: 10px 0px 5px 13%;
+}
+
+/* Поле ввода */
+.LoginInput {
+    width: 70%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 50px;
+    background-color: #4a4a4a;
+    color: #fff;
+    font-size: 14px;
+    outline:none;
+}
+
+.LoginInput::placeholder {
+    color: #aaa;
+}
+
+/* Кнопка */
+.LoginButton {
+    width: 30%;
+    padding: 10px;
+    border: none;
+    border-radius: 50px;
+    background-color: #3C3C3C;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.LoginButton:hover {
+    background-color: #ffffff;
+    color: #2d2d2d;
+}

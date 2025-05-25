@@ -1,0 +1,52 @@
+.ErrorBackground{
+    background-color: #00000080;
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+.ErrorMessage{
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    position: fixed;
+    background-color: #2d2d2d;
+    display: flex;
+    justify-content: space-between  ;
+    align-items: center;
+    flex-direction: column;
+    padding: 2%;
+    text-align: center;
+    color: white;
+    border-radius: 30px;
+    border: 3px solid white;
+    min-width: 20%;
+    min-height: 10%;
+    align-self: center;
+    justify-self: center;
+}
+
+.ErrorText{
+
+}
+
+.CloseButton{
+    width: 10%;
+    min-width: 15%;
+    padding: 10px;
+    border: 2px solid #ffffff;
+    border-radius: 50px;
+    background-color: transparent;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    text-decoration: none;
+}
+
+.CloseButton:hover {
+    background-color: #ffffff;
+    color: #2d2d2d;
+}
