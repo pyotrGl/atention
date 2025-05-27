@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Cookies from "js-cookie";
-import { Navigate, useParams } from "react-router-dom";
+import {Navigate, useNavigate, useParams} from "react-router-dom";
 import config from "../../config";
 import "./LoginPage.css";
 import ErrorMessage from "../components/ErrorMessage";
@@ -10,6 +10,7 @@ function LoginPage() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const params = useParams();
+	const navigate = useNavigate();
 
 	if (Cookies.get("password") && Cookies.get("email")) {
 		fetch(`${config.apiBaseURL}/${config.loginEndpoint}`,{
@@ -43,11 +44,11 @@ function LoginPage() {
 				Cookies.set("password", password);
 				Cookies.set("email", email);
 				console.log(response.json());
-				return (<Navigate to="/main" replace/>)
+				navigate("/main");
 			}
 		}).catch(error => {
 			console.log(error);
-			return (<Navigate to="/login/403" replace/>)
+			navigate("/login/403");
 		});
 	}
 
