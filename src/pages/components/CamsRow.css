@@ -1,0 +1,9 @@
+.CamsRow {
+    color: white;
+    padding: 5%;
+    display: flex;
+}
+
+.CamsRow:hover {
+    background-color: #1E1E1E;
+}

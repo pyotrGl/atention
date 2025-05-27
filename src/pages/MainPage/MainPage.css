@@ -2,9 +2,12 @@
     height: 98vh;
     background-color: #1E1E1E;
     padding: 1vh;
+
 }
 
-.VideoPanel{
+.top-section{
     width: 100%;
+    display: grid;
+    grid-template-columns:24% 1% 74%;
 }
 
