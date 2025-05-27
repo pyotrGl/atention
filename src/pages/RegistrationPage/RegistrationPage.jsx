@@ -1,31 +1,47 @@
 import React, {useState} from "react";
 import config from "../../config";
 import Cookies from 'js-cookie';
-import {Navigate, useParams} from 'react-router-dom';
+import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import "./RegistrationPage.css";
 import ErrorMessage from "../components/ErrorMessage";
 
 function RegistrationPage() {
+	const navigate = useNavigate();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [repeatPassword, setRepeatPassword] = useState('');
 	const params = useParams();
 
-	if (Cookies.get("password")) {
+	if (params.status === 200){
 		return (<Navigate to="/main" replace/>)
 	}
 
 	function registration() {
 		if (password === repeatPassword) {
-			fetch(`${config.apiBaseURL}/${config.registration}`,{
+			fetch(`${config.apiBaseURL}/${config.registration}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					email: email, password: password,
+					email: email,
+					password: password,
 				}),
-			}).then(res => params.status = `${res.status}`);
+			})
+				.then((res) => {
+					if (res.status === 200) {
+						Cookies.set("email", email);
+						Cookies.set("password", password);
+						navigate("/main");
+					} else {
+						navigate("/registration/403");;
+					}
+				})
+				.catch((error) => {
+					navigate("/registration/403");
+				});
+		} else {
+			navigate("/registration/403");
 		}
 	}
 
@@ -67,7 +83,7 @@ function RegistrationPage() {
 					Зарегистрироваться
 				</button>
 			</div>
-			{params.status === "200" && <Navigate to="/registration" replace/>}
+			{params.status === "200" && <Navigate to="/main" replace/>}
 			{params.status === "403" && <ErrorMessage link="/registration" statusText="Вы ещё не зарегистрированны, пожалуйста пройдите регистрацию"/>}
 		</div>
 	);

@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState,  } from "react";
+import {Navigate, useNavigate} from "react-router-dom";
 import config from "../../config";
 import "./MainPage.css";
+import Cookies from 'js-cookie';
 import VideoPanel from "../components/VideoPanel";
 import LogsPanel from "../components/LogsPanel";
 import CamsPanel from "../components/CamsPanel";
@@ -11,6 +13,13 @@ function MainPage() {
 	const [stream, setStream] = useState(null);
 	const [ipUrl, setIpUrl] = useState(null);
 	const [boxes, setBoxes] = useState([]);
+	const navigate = useNavigate();
+
+
+	if (!Cookies.get("login")){
+		navigate("/login", { replace: true });
+	}
+
 
 	// 1. Открываем WebSocket при монтировании
 	useEffect(() => {
