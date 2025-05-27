@@ -73,10 +73,14 @@ function LoginPage() {
 				<button className="LoginButton" onClick={login}>
 					Войти
 				</button>
+				<br/>
+				<br/>
+				<a href="/registration" className="linkLogin">Нет аккаунта</a>
 			</div>
 			{params.status === "200" && <Navigate to="/login" replace/>}
 			{params.status === "401" && <ErrorMessage link="/login" statusText="Войдите в аккаунт"/>}
 			{params.status === "403" && <ErrorMessage link="/login" statusText="Неверный логин или пароль"/>}
+
 		</div>
 	);
 }

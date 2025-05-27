@@ -82,6 +82,9 @@ function RegistrationPage() {
 				>
 					Зарегистрироваться
 				</button>
+				<br/>
+				<br/>
+				<a href="/login" className="linkLogin">Уже есть аккаунт</a>
 			</div>
 			{params.status === "200" && <Navigate to="/main" replace/>}
 			{params.status === "403" && <ErrorMessage link="/registration" statusText="Вы ещё не зарегистрированны, пожалуйста пройдите регистрацию"/>}
