@@ -13,22 +13,6 @@ function LogsPanel({ objects }) {
 					name={obj.name}
 				/>
 			))}
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-
 		</div>
 	);
 }

@@ -3,95 +3,86 @@ import "./CamsPanel.css";
 import CamsRow from "./CamsRow";
 
 function CamsPanel({ onSelectCamera }) {
-	// 1. Локальный стейт: список USB-камер (получим через enumerateDevices)
 	const [usbCams, setUsbCams] = useState([]);
 	const [ipCams, setIpCams] = useState([]);
 	const [NameInput, setNameInput] = useState("");
 	const [URLInput, setURLInput] = useState("");
-	// 2. Список «статических» IP‑камер
-	// const ipCams = [
-	// 	{
-	// 		id: "1",
-	// 		name: "IP камера",
-	// 		type: "ip",
-	// 		url: "http://192.168.0.105:8080/video"
-	// 	}
-	// ];
-
-	// 3. Выбранная камера: её id (deviceId для USB либо id из ipCams)
 	const [selectedId, setSelectedId] = useState(null);
 
-	// 4. При монтировании получаем список устройств
 	useEffect(() => {
+		// 1) Сначала запрашиваем доступ к любому видеопотоку (чтобы браузер отобразил labels)
 		navigator.mediaDevices
-			.enumerateDevices()
+			.getUserMedia({ video: true })
+			.then((stream) => {
+				// Как только разрешение получено, можно сразу остановить все треки (мы брали только для доступа к меткам)
+				stream.getTracks().forEach((t) => t.stop());
+
+				// 2) Теперь можно получить список устройств с понятными метками
+				return navigator.mediaDevices.enumerateDevices();
+			})
 			.then((devices) => {
-				// Фильтруем только видеовходы (USB‑камеры)
-				const videoInputs = devices.filter(
-					(d) => d.kind === "videoinput"
-				);
-				// Преобразуем в объекты вида { id: deviceId, name: label || default, type: "usb", deviceId }
+				const videoInputs = devices.filter((d) => d.kind === "videoinput");
 				const mapped = videoInputs.map((d, idx) => ({
 					id: d.deviceId,
 					name: d.label || `USB Camera ${idx + 1}`,
 					type: "usb",
-					deviceId: d.deviceId
+					deviceId: d.deviceId,
 				}));
 				setUsbCams(mapped);
 
-				// Если есть хотя бы одна USB‑камера, сразу выбираем первую
 				if (mapped.length > 0) {
 					setSelectedId(mapped[0].id);
 					onSelectCamera(mapped[0]);
 				}
 			})
 			.catch((err) => {
-				console.error("Не удалось получить список устройств:", err);
+				console.error("Не удалось получить доступ к камере или список устройств:", err);
 			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// 5. Обработчик клика по строке камеры
 	const handleRowClick = (cam) => {
 		setSelectedId(cam.id);
 		onSelectCamera(cam);
 	};
 
-	// 6. Объединяем USB‑и IP‑камеры в один массив для рендера
-	const allCams = [
-		// Сначала USB‑камеры
-		...usbCams,
-		// Затем IP‑камеры (id уже уникальны)
-		...ipCams
-	];
+	const allCams = [...usbCams, ...ipCams];
 
 	const addCam = (id, name, url) => {
-		setIpCams(prev => [
+		setIpCams((prev) => [
 			...prev,
 			{
-				id,
+				id: String(id),
 				name,
 				type: "ip",
-				url
-			}
+				url,
+			},
 		]);
 	};
-
 
 	return (
 		<div className="CamsPanel">
 			<div className="AddCam">
 				<input
 					className="NameInput"
+					placeholder="Имя IP‑камеры"
 					value={NameInput}
 					onChange={(e) => setNameInput(e.target.value)}
 				/>
 				<input
 					className="URLInput"
+					placeholder="URL потока"
 					value={URLInput}
 					onChange={(e) => setURLInput(e.target.value)}
 				/>
-				<button className="AddCamButton" onClick={() => addCam(ipCams.length+1, NameInput, URLInput)}>+</button>
+				<button
+					className="AddCamButton"
+					onClick={() =>
+						addCam(ipCams.length + 1, NameInput || "Безымянная", URLInput)
+					}
+				>
+					➕
+				</button>
 			</div>
 			{allCams.map((cam) => (
 				<CamsRow
