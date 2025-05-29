@@ -16,6 +16,5 @@
 .VideoCanvas{
     position: absolute;
     z-index: 1;
-    width: 640px;
-    height: 480px;
+    overflow: hidden;
 }

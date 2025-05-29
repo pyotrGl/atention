@@ -4,7 +4,7 @@
     padding: 0.5%;
     height: 489.38px;
     overflow-y: overlay; /* не сдвигает контент */
-
+    z-index: 10;
     /* Firefox scroll */
     scrollbar-width: thin;
     scrollbar-color: #FFCC00 #1E1E1E;

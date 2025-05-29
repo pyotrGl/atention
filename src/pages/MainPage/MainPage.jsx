@@ -19,18 +19,18 @@ function MainPage() {
 	// 1. Открываем WebSocket при монтировании
 	useEffect(() => {
 
-		fetch(`${config.apiBaseURL}/${config.loginEndpoint}`,{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				email: Cookies.get("email"), password: Cookies.get("password"),
-			}),
-		}).catch(error => {
-			console.log(error);
-			navigate("/login/403");
-		});
+		// fetch(`${config.apiBaseURL}/${config.loginEndpoint}`,{
+		// 	method: "POST",
+		// 	headers: {
+		// 		"Content-Type": "application/json",
+		// 	},
+		// 	body: JSON.stringify({
+		// 		email: Cookies.get("email"), password: Cookies.get("password"),
+		// 	}),
+		// }).catch(error => {
+		// 	console.log(error);
+		// 	navigate("/login/403");
+		// });
 
 		const ws = new WebSocket(config.videoWS);
 		ws.binaryType = "arraybuffer";

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import "./VideoPanel.css";
+import config from "../../config";
 
 function VideoPanel({ stream, ipUrl, boxes }) {
 	const videoRef = useRef(null);
@@ -125,7 +126,7 @@ function VideoPanel({ stream, ipUrl, boxes }) {
 				style={{display: "none", width: "640px", height: "480px"}}
 				alt="IP Camera"
 			/>
-			<canvas className="VideoCanvas" ref={canvasRef}/>
+			<canvas className="VideoCanvas" ref={canvasRef} height={config.canvasHeight + "px"} width={config.canvasWidth + "px"} />
 		</div>
 	);
 }
