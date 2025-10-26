@@ -1,62 +1,44 @@
 .CamsPanel {
     background-color: #2B2B2B;
-    border-radius: 10px;
-    padding: 0.5%;
-    height: 489.38px;
-    overflow-y: overlay; /* не сдвигает контент */
+    padding: 10px;
+    height: 100%;
+    overflow-y: auto;
     z-index: 10;
-    /* Firefox scroll */
+
     scrollbar-width: thin;
     scrollbar-color: #FFCC00 #1E1E1E;
 }
+.CamsPanel::-webkit-scrollbar { width: 8px; }
+.CamsPanel::-webkit-scrollbar-track { background: #1E1E1E; border-radius: 10px; }
+.CamsPanel::-webkit-scrollbar-thumb { background: #FFCC00; border-radius: 10px; }
+.CamsPanel::-webkit-scrollbar-thumb:hover { background: #e6b800; }
 
-/* WebKit Scrollbar (Chrome, Edge, Safari) */
-.CamsPanel::-webkit-scrollbar {
-    width: 8px;
-}
-
-.CamsPanel::-webkit-scrollbar-track {
-    background: #1E1E1E;
-    border-radius: 10px;
-}
-
-.CamsPanel::-webkit-scrollbar-thumb {
-    background: #FFCC00;
-    border-radius: 10px;
-}
-
-.CamsPanel::-webkit-scrollbar-thumb:hover {
-    background: #e6b800;
-}
-
+/* Форма добавления IP-камеры */
 .AddCam {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     gap: 10px;
     align-items: center;
-    padding: 10px;
+    padding: 6px 6px 10px;
+    position: sticky;
+    top: 0;
+    background: #2B2B2B;
+    z-index: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .AddCamButton {
     background-color: #FFCC00;
-    color: white;
+    color: #1E1E1E;
     border-radius: 10px;
     height: 36px;
     width: 36px;
     border: none;
-
-    outline: none;
-    box-shadow: none;
-    appearance: none;
-    -webkit-appearance: none;
-
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: transform 0.06s ease, background-color 0.2s ease;
 }
-
-.AddCamButton:hover {
-    background-color: #e6b800;
-}
+.AddCamButton:hover { background-color: #e6b800; }
+.AddCamButton:active { transform: scale(0.97); }
 
 .NameInput,
 .URLInput {
@@ -64,28 +46,14 @@
     color: white;
     background-color: #1E1E1E;
     border-radius: 10px;
-    border: none;
-
-    outline: none;
-    box-shadow: none;
-    appearance: none;
-    -webkit-appearance: none;
-
+    border: 1px solid transparent;
     font-size: 14px;
     width: 100%;
     box-sizing: border-box;
 }
-
 .NameInput:focus,
 .URLInput:focus {
-    border: none;
+    border-color: #FFCC00;
+    box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.25);
     outline: none;
-    box-shadow: 0 0 0 2px #FFCC00;
-}
-
-.NameInput:active,
-.URLInput:active {
-    border: none;
-    outline: none;
-    box-shadow: none;
 }

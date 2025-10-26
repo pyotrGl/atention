@@ -1,9 +1,18 @@
 .CamsRow {
-    color: white;
-    padding: 5%;
+    color: #fff;
+    padding: 10px 12px;
     display: flex;
+    align-items: center;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .CamsRow:hover {
     background-color: #1E1E1E;
+}
+
+.CamsRow.selected {
+    background: rgba(255, 204, 0, 0.12);
+    outline: 1px solid #FFCC00;
 }

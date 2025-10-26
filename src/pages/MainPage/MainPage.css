@@ -1,13 +1,45 @@
-.MainPage{
-    height: 98vh;
+.MainPage {
+    --gap: 12px;
+    height: 100vh;
     background-color: #1E1E1E;
-    padding: 1vh;
-
+    padding: var(--gap);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
 }
 
-.top-section{
+/* Верх: две колонки (камеры + видео), низ: логи */
+.top-section {
     width: 100%;
     display: grid;
-    grid-template-columns:24% 1% 74%;
+    grid-template-columns: clamp(260px, 22vw, 360px) 1fr;
+    gap: var(--gap);
+    flex: 1;
+    min-height: 0;
+}
+.top-section > * { min-height: 0; }
+
+.bottom-section {
+    width: 100%;
+    height: clamp(180px, 28vh, 380px);
+    min-height: 160px;
 }
 
+/* Общий стиль панелей */
+.CamsPanel,
+.VideoWrap,
+.LogsPanel {
+    background-color: #2B2B2B;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Контейнер видео */
+.VideoWrap {
+    height: 100%;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
