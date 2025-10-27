@@ -112,14 +112,14 @@ function VideoPanel({ stream, ipUrl, boxes }) {
 	return (
 		<div className="VideoPanel">
 			{/* Если USB-камера — используем <video>; для IP — <img> */}
-			<video
-				className="video-element"
-				ref={videoRef}
-				style={{display: "none", width: "640px", height: "480px"}}
-				autoPlay
-				muted
-				playsInline
-			/>
+            <video
+                className="video-element"
+                autoPlay
+                playsInline
+                muted
+                ref={videoRef}
+            />
+
 			<img
 				className="video-element"
 				ref={imgRef}

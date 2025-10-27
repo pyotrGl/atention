@@ -17,3 +17,29 @@
     z-index: 1;
     overflow: hidden;
 }
+
+.VideoWrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Само видео */
+.video-element {
+    width: 65%;
+    height: 65%;
+    object-fit: contain;   /* вписываем без обрезания */
+    background-color: #000; /* чтобы вокруг было аккуратно чёрное поле */
+    border-radius: 8px;
+}
+
+/* Если у тебя есть канвас для боксов поверх видео */
+.video-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}

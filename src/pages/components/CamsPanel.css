@@ -1,20 +1,20 @@
-.CamsPanel {
+.CamsPanel{
     background-color: #2B2B2B;
     padding: 10px;
     height: 100%;
-    overflow-y: auto;
+    overflow-y: auto;    /* кроссбраузернее, чем overlay */
     z-index: 10;
 
     scrollbar-width: thin;
     scrollbar-color: #FFCC00 #1E1E1E;
 }
-.CamsPanel::-webkit-scrollbar { width: 8px; }
-.CamsPanel::-webkit-scrollbar-track { background: #1E1E1E; border-radius: 10px; }
-.CamsPanel::-webkit-scrollbar-thumb { background: #FFCC00; border-radius: 10px; }
-.CamsPanel::-webkit-scrollbar-thumb:hover { background: #e6b800; }
+.CamsPanel::-webkit-scrollbar{ width: 8px; }
+.CamsPanel::-webkit-scrollbar-track{ background:#1E1E1E; border-radius:10px; }
+.CamsPanel::-webkit-scrollbar-thumb{ background:#FFCC00; border-radius:10px; }
+.CamsPanel::-webkit-scrollbar-thumb:hover{ background:#e6b800; }
 
-/* Форма добавления IP-камеры */
-.AddCam {
+/* липкая форма добавления IP-камеры */
+.AddCam{
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     gap: 10px;
@@ -24,36 +24,34 @@
     top: 0;
     background: #2B2B2B;
     z-index: 1;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
 }
 
-.AddCamButton {
+.AddCamButton{
     background-color: #FFCC00;
     color: #1E1E1E;
     border-radius: 10px;
-    height: 36px;
-    width: 36px;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.06s ease, background-color 0.2s ease;
+    height: 36px; width: 36px;
+    border: none; cursor: pointer;
+    transition: transform .06s, background-color .2s;
 }
-.AddCamButton:hover { background-color: #e6b800; }
-.AddCamButton:active { transform: scale(0.97); }
+.AddCamButton:hover{ background:#e6b800; }
+.AddCamButton:active{ transform: scale(.97); }
 
-.NameInput,
-.URLInput {
-    padding: 10px;
-    color: white;
-    background-color: #1E1E1E;
-    border-radius: 10px;
-    border: 1px solid transparent;
-    font-size: 14px;
-    width: 100%;
-    box-sizing: border-box;
+.NameInput,.URLInput{
+    padding: 10px; color:#fff; background:#1E1E1E;
+    border-radius:10px; border:1px solid transparent;
+    font-size:14px; width:100%; box-sizing:border-box;
 }
-.NameInput:focus,
-.URLInput:focus {
-    border-color: #FFCC00;
-    box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.25);
-    outline: none;
+.NameInput:focus,.URLInput:focus{
+    border-color:#FFCC00; box-shadow:0 0 0 2px rgba(255,204,0,.25); outline:none;
 }
+
+/* строки камер: ховер/selected почище */
+.CamsRow{
+    color:#fff; padding:10px 12px; display:flex; align-items:center;
+    border-radius:8px; cursor:pointer; transition: background-color .2s;
+}
+.CamsRow:hover{ background:#1E1E1E; }
+.CamsRow.selected{ background:rgba(255,204,0,.12); outline:1px solid #FFCC00; }

@@ -246,7 +246,6 @@ function MainPage() {
                     <VideoPanel stream={stream} ipUrl={ipUrl} boxes={boxes} />
                 </div>
             </div>
-
             <div className="bottom-section">
                 <LogsPanel objects={boxes} />
             </div>
