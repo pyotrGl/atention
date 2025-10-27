@@ -31,7 +31,7 @@
 /* Само видео */
 .video-element {
     width: 65%;
-    height: 65%;
+    height: 100%;
     object-fit: contain;   /* вписываем без обрезания */
     background-color: #000; /* чтобы вокруг было аккуратно чёрное поле */
     border-radius: 8px;

@@ -3,9 +3,12 @@
     padding: 10px 12px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.2s;
+    position: relative;
+    margin-bottom: 10px;
 }
 
 .CamsRow:hover {
@@ -15,4 +18,26 @@
 .CamsRow.selected {
     background: rgba(255, 204, 0, 0.12);
     outline: 1px solid #FFCC00;
+}
+
+/* кнопка удаления */
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #ffcc00;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    transform: scale(0.9);
+}
+
+.CamsRow:hover .delete-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.delete-btn:hover {
+    color: #ff6666;
+    transform: scale(1.1);
 }
