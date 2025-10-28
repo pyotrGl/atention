@@ -1,7 +1,9 @@
 .LogRow {
     color: #FFCC00;
+    translate: -1%;
+    width: 100%;
     display: grid;
-    grid-template-columns:25% 25% 25% 25%;
+    grid-template-columns:33% 33% 33%;
     text-align: center;
     padding: 1%;
 }
@@ -11,9 +13,11 @@
 }
 
 .LogTitle{
+    transform: translate(-1%, -2%);
+    width: 100%;
     color: #FFCC00;
     display: grid;
-    grid-template-columns:25% 25% 25% 25%;
+    grid-template-columns:33% 33% 33%;
     text-align: center;
     padding: 1%;
     position: sticky;

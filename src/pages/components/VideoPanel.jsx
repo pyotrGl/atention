@@ -126,7 +126,7 @@ function VideoPanel({ stream, ipUrl, boxes }) {
 				style={{display: "none"}}
 				alt="IP Camera"
 			/>
-			<canvas className="VideoCanvas" ref={canvasRef} height={config.canvasHeight + "px"} width={config.canvasWidth + "px"} />
+			<canvas className="VideoCanvas" ref={canvasRef}/>
 		</div>
 	);
 }

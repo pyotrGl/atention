@@ -10,31 +10,51 @@ function CamsPanel({ onSelectCamera }) {
     const [selectedId, setSelectedId] = useState(null);
 
     useEffect(() => {
+        // Проверяем, поддерживает ли браузер работу с медиаустройствами
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            console.warn("Ваш браузер не поддерживает API enumerateDevices.");
+            return;
+        }
+
+        // Пытаемся запросить разрешение для получения меток устройств
         navigator.mediaDevices
             .getUserMedia({ video: true })
             .then((stream) => {
+                // Останавливаем все треки (нам нужно было только разрешение)
                 stream.getTracks().forEach((t) => t.stop());
-                return navigator.mediaDevices.enumerateDevices();
             })
-            .then((devices) => {
-                const videoInputs = devices.filter((d) => d.kind === "videoinput");
-                const mapped = videoInputs.map((d, idx) => ({
-                    id: d.deviceId,
-                    name: d.label || `USB Camera ${idx + 1}`,
-                    type: "usb",
-                    deviceId: d.deviceId,
-                }));
-                setUsbCams(mapped);
+            .catch(() => {
+                // Если пользователь запретил доступ — не страшно, просто продолжаем без него
+                console.warn("Доступ к камере не предоставлен. Продолжаем без USB-камер.");
+            })
+            .finally(() => {
+                // Всегда выполняем enumerateDevices, даже если getUserMedia не сработал
+                navigator.mediaDevices
+                    .enumerateDevices()
+                    .then((devices) => {
+                        const videoInputs = devices.filter((d) => d.kind === "videoinput");
+                        const mapped = videoInputs.map((d, idx) => ({
+                            id: d.deviceId || `no-id-${idx}`,
+                            name: d.label || `USB Camera ${idx + 1}`,
+                            type: "usb",
+                            deviceId: d.deviceId,
+                        }));
 
-                if (mapped.length > 0) {
-                    setSelectedId(mapped[0].id);
-                    onSelectCamera(mapped[0]);
-                }
-            })
-            .catch((err) => {
-                console.error("Не удалось получить доступ к камере:", err);
+                        setUsbCams(mapped);
+
+                        if (mapped.length > 0) {
+                            setSelectedId(mapped[0].id);
+                            onSelectCamera(mapped[0]);
+                        } else {
+                            console.log("USB-камеры не найдены, ня~");
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Ошибка при получении списка устройств:", err);
+                    });
             });
     }, []);
+
 
     const handleRowClick = (cam) => {
         setSelectedId(cam.id);

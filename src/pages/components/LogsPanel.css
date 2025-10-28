@@ -2,11 +2,12 @@
     background-color: #2B2B2B;
     border-radius: 10px;
     width: 99%;
-    height: 32%;
+    height: 90%;
     margin-top: 1.5%;
     padding: 0.5%;
     overflow-y: overlay;
     padding-top: 0.04%;
+    overflow-x: hidden;
 
     /* Firefox scrollbar */
     scrollbar-width: thin;

@@ -5,7 +5,19 @@ import LogRow from "./LogRow";
 function LogsPanel({ objects }) {
 	return (
 		<div className="LogsPanel">
-			<LogRow id={"ID"} name={"OBJECT"} device={"DEVICE"} attention={"ACTION"} isTitle={true}/>
+            <LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"} isTitle={true}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
+			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
 			{objects && objects.map((obj, idx) => (
 				<LogRow
 					key={idx}

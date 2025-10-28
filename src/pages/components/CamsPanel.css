@@ -4,7 +4,7 @@
     height: 100%;
     overflow-y: auto;    /* кроссбраузернее, чем overlay */
     z-index: 10;
-
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: #FFCC00 #1E1E1E;
 }
@@ -15,17 +15,20 @@
 
 /* липкая форма добавления IP-камеры */
 .AddCam{
+    transform: translate(-1%, -20%);
     display: grid;
+    background-color: black;
     grid-template-columns: 1fr 1fr auto;
     gap: 10px;
     align-items: center;
-    padding: 6px 6px 10px;
+    padding: 20px 6px 10px;
     position: sticky;
     top: 0;
     background: #2B2B2B;
     z-index: 1;
     margin-bottom: 10px;
     border-bottom: 1px solid rgba(255,255,255,.06);
+    width: 102%;
 }
 
 .AddCamButton{
