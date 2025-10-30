@@ -6,12 +6,10 @@ import CamsPanel from "../components/CamsPanel";
 import "./MainPage.css";
 
 /* ============================================================
-   Utility functions
+   Utilities
    ============================================================ */
 
-/**
- * Parses possibly nested JSON safely (handles double-encoded strings)
- */
+/** Safely parse possibly nested JSON */
 const parseMaybeNestedJSON = (raw) => {
     try {
         let parsed = JSON.parse(raw);
@@ -21,6 +19,10 @@ const parseMaybeNestedJSON = (raw) => {
         return null;
     }
 };
+
+/** Generate stable-ish unique id for UI lists */
+const genId = (prefix = "log") =>
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 /* ============================================================
    Main component
@@ -33,6 +35,9 @@ function MainPage() {
     const [boxes, setBoxes] = useState([]);
     const [logs, setLogs] = useState([]);
 
+    /** Registry of cameras by numericId for quick lookups in logs */
+    const [cameraRegistry, setCameraRegistry] = useState({}); // { [numericId]: {name, url, ...} }
+
     /* ------------------ Refs ------------------ */
     const wsRef = useRef(null);
     const manualCloseRef = useRef(false);
@@ -44,7 +49,7 @@ function MainPage() {
        WebSocket management
        ============================================================ */
 
-    /** Sends an object to the backend WebSocket (if open) */
+    /** Send payload to WS if open */
     const sendToWS = useCallback((payload) => {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -52,10 +57,9 @@ function MainPage() {
         }
     }, []);
 
-    /** Reconnects with exponential backoff */
+    /** Reconnect with capped backoff */
     const scheduleReconnect = useCallback(() => {
         if (manualCloseRef.current) return;
-
         const delay = Math.min(backoffRef.current, 5000);
         reconnectTimerRef.current = setTimeout(() => {
             connectWS();
@@ -63,11 +67,9 @@ function MainPage() {
         }, delay);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    /** Establishes WebSocket connection and handles lifecycle */
+    /** Open WS and wire handlers */
     const connectWS = useCallback(() => {
         let wsUrl = config.videoWS;
-
-        // Auto-upgrade to wss:// if site is https://
         if (window.location.protocol === "https:" && wsUrl.startsWith("ws://")) {
             wsUrl = wsUrl.replace(/^ws:\/\//, "wss://");
         }
@@ -85,54 +87,55 @@ function MainPage() {
                 const msg = typeof data === "string" ? parseMaybeNestedJSON(data) : data;
                 if (!msg || typeof msg !== "object") return;
 
-                // === Labels ===
+                // === labels ===
                 if (msg.type === "labels" && Number.isInteger(msg.camera_id)) {
                     const labelList = Array.isArray(msg.labels) ? msg.labels : [];
                     lastBoxesByCameraRef.current.set(msg.camera_id, labelList);
-
-                    if (msg.camera_id === selectedCameraId) {
-                        setBoxes(labelList);
-                    }
+                    if (msg.camera_id === selectedCameraId) setBoxes(labelList);
                     return;
                 }
 
-                // === Warnings ===
-                if (msg.type === "warning" && Number.isInteger(msg.camera_id)) {
-                    const id = `${msg.camera_id}-${Date.now()}`;
-                    const logEntry = {
-                        id,
+                // === warning ===
+                if (msg.type === "warning") {
+                    // camera_id may be absent for now; handle both cases
+                    const camId = Number.isInteger(msg.camera_id) ? msg.camera_id : null;
+                    const deviceName =
+                        (camId && cameraRegistry[camId]?.name) ||
+                        (camId ? `Camera #${camId}` : "Unknown device");
+
+                    const entry = {
+                        id: genId("warn"),
                         ts: Date.now(),
-                        cameraId: msg.camera_id,
-                        device: `Camera #${msg.camera_id}`,
-                        name: msg.object_name,
-                        attention: msg.warning_type, // "warning" | "error"
+                        cameraId: camId,
+                        device: deviceName,
+                        name: msg.object_name ?? "Unknown object",
+                        attention: msg.warning_type ?? "warning",
                     };
 
-                    setLogs((prev) => [logEntry, ...prev]);
+                    setLogs((prev) => [entry, ...prev]);
                     setTimeout(() => {
-                        setLogs((prev) => prev.filter((x) => x.id !== id));
+                        setLogs((prev) => prev.filter((x) => x.id !== entry.id));
                     }, 3000);
                     return;
                 }
             };
 
-            ws.onerror = () => console.warn("[WS] Error occurred");
+            ws.onerror = () => console.warn("[WS] Error");
             ws.onclose = () => {
-                console.warn("[WS] Disconnected — scheduling reconnect...");
+                console.warn("[WS] Closed — scheduling reconnect");
                 wsRef.current = null;
                 scheduleReconnect();
             };
         } catch (err) {
-            console.error("[WS] Connection error:", err);
+            console.error("[WS] Connect error:", err);
             scheduleReconnect();
         }
-    }, [scheduleReconnect, selectedCameraId]);
+    }, [scheduleReconnect, selectedCameraId, cameraRegistry]);
 
-    /** Initialize WS on mount and cleanup on unmount */
+    /** Mount/unmount lifecycle */
     useEffect(() => {
         manualCloseRef.current = false;
         connectWS();
-
         return () => {
             manualCloseRef.current = true;
             if (wsRef.current) wsRef.current.close();
@@ -141,7 +144,7 @@ function MainPage() {
     }, [connectWS]);
 
     /* ============================================================
-       Camera selection handling
+       Camera selection
        ============================================================ */
 
     const handleCameraSelection = useCallback(
@@ -152,31 +155,30 @@ function MainPage() {
             setSelectedCameraId(cameraId);
             setIpUrl(camera.url);
 
-            // Display cached boxes until new labels arrive
+            // show cached boxes until fresh labels arrive
             const cachedBoxes = lastBoxesByCameraRef.current.get(cameraId) || [];
             setBoxes(cachedBoxes);
 
-            // Notify backend about selected camera
-            sendToWS({
-                type: "url",
-                camera_id: cameraId,
-                camera_url: camera.url,
-            });
-
-            sendToWS({
-                type: "status",
-                status: "active",
-            });
+            // notify backend
+            sendToWS({ type: "url", camera_id: cameraId, camera_url: camera.url });
+            sendToWS({ type: "status", status: "active" });
         },
         [sendToWS]
     );
 
     /* ============================================================
-       Registry updates (currently not used)
+       Registry updates from CamsPanel
        ============================================================ */
 
-    const handleRegistryChange = useCallback(() => {
-        // Reserved for future functionality (e.g., syncing list)
+    const handleRegistryChange = useCallback((list) => {
+        // list: array of cams with numericId, name, url...
+        const dict = {};
+        for (const c of list || []) {
+            if (Number.isInteger(c.numericId)) {
+                dict[c.numericId] = c;
+            }
+        }
+        setCameraRegistry(dict);
     }, []);
 
     /* ============================================================
@@ -185,19 +187,16 @@ function MainPage() {
 
     return (
         <div className="MainPage">
-            {/* ======= Top section ======= */}
             <div className="top-section">
                 <CamsPanel
                     onSelectCamera={handleCameraSelection}
                     onRegistryChange={handleRegistryChange}
                 />
-
                 <div className="VideoWrap">
                     <VideoPanel ipUrl={ipUrl} boxes={boxes} />
                 </div>
             </div>
 
-            {/* ======= Bottom section (logs) ======= */}
             <div className="bottom-section">
                 <LogsPanel objects={logs} />
             </div>
