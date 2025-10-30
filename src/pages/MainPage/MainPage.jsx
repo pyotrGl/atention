@@ -112,7 +112,7 @@ function MainPage() {
     const sendImageBase64 = useCallback((camera_id, base64) => {
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ camera_id, image: base64 }));
+        ws.send(JSON.stringify({ camera_id: camera_id, image: base64 }));
     }, []);
 
     // Кодирование DOM media -> base64 JPEG (качество 0.7)
