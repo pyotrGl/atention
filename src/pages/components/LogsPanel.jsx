@@ -6,18 +6,6 @@ function LogsPanel({ objects }) {
 	return (
 		<div className="LogsPanel">
             <LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"} isTitle={true}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
-			<LogRow name={"OBJECT"} device={"DEVICE"} attention={"ACTION"}/>
 			{objects && objects.map((obj, idx) => (
 				<LogRow
 					key={idx}

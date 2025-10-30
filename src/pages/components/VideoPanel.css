@@ -1,45 +1,25 @@
 .VideoPanel{
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5%;
-    background-color: #2B2B2B;
+    position:relative;
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#000;
+    border-radius:8px;
+    overflow:hidden;
 }
 
-.video {
-    border-radius: 10px;
-
+.video-element{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    display:block;
+    border-radius:8px;
 }
 
-.VideoCanvas{
-    position: absolute;
-    z-index: 1;
-    overflow: hidden;
-}
-
-.VideoWrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    position: relative;
-}
-
-/* Само видео */
-.video-element {
-    width: 65%;
-    height: 100%;
-    object-fit: contain;   /* вписываем без обрезания */
-    background-color: #000; /* чтобы вокруг было аккуратно чёрное поле */
-    border-radius: 8px;
-}
-
-/* Если у тебя есть канвас для боксов поверх видео */
-.video-layer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+.video-overlay{
+    position:absolute;
+    pointer-events:none;
+    /* left/top/size задаём из JS по реальным размерам video/img */
 }
