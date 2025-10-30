@@ -1,155 +1,192 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import "./CamsPanel.css";
 import CamsRow from "./CamsRow";
 
-/** ==== Cookies helpers ==== */
+/* ============================================================
+   Cookie helpers
+   ============================================================ */
+
 const COOKIE_NAME = "ipCameras";
 
-/** days -> max-age cookie */
-function setCookie(name, value, days = 365) {
+/**
+ * Save data to cookies with a max-age (default 1 year)
+ */
+const setCookie = (name, value, days = 365) => {
     const maxAge = Math.floor(days * 24 * 60 * 60);
     document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
-}
+};
 
-function getCookie(name) {
-    const m = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
-    return m ? decodeURIComponent(m[1]) : null;
-}
+/**
+ * Get cookie value by name
+ */
+const getCookie = (name) => {
+    const pattern = new RegExp(
+        "(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"
+    );
+    const match = document.cookie.match(pattern);
+    return match ? decodeURIComponent(match[1]) : null;
+};
+
+/* ============================================================
+   Component
+   ============================================================ */
 
 function CamsPanel({ onSelectCamera, onRegistryChange }) {
-    const [ipCams, setIpCams] = useState([]);
-    const [NameInput, setNameInput] = useState("");
-    const [URLInput, setURLInput] = useState("");
-    const [selectedId, setSelectedId] = useState(null);
+    /* ------------------ State ------------------ */
+    const [ipCameras, setIpCameras] = useState([]);
+    const [nameInput, setNameInput] = useState("");
+    const [urlInput, setUrlInput] = useState("");
+    const [selectedCameraId, setSelectedCameraId] = useState(null);
 
-    // будем увеличивать с макс. numericId + 1 после восстановления из cookies
-    const ipIdRef = useRef(1);
+    const nextIdRef = useRef(1);
 
-    /** Восстанавливаем список из cookies на старте */
+    /* ============================================================
+       Load from cookies on mount
+       ============================================================ */
     useEffect(() => {
         const raw = getCookie(COOKIE_NAME);
         if (!raw) return;
 
         try {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-                // нормализуем и выставляем корректный nextId
-                const restored = parsed.map((c, idx) => ({
+            if (!Array.isArray(parsed)) return;
+
+            // Normalize and clean list
+            const restored = parsed
+                .map((c, idx) => ({
                     id: `ip-${c.numericId ?? idx + 1}`,
                     name: c.name || `IP Camera ${c.numericId ?? idx + 1}`,
                     type: "ip",
                     url: c.url || "",
                     numericId: Number(c.numericId ?? idx + 1),
-                })).filter(c => c.url);
+                }))
+                .filter((c) => c.url);
 
-                if (restored.length) {
-                    setIpCams(restored);
-                    // next id
-                    const maxId = restored.reduce((m, c) => Math.max(m, c.numericId), 0);
-                    ipIdRef.current = maxId + 1;
+            if (!restored.length) return;
 
-                    // авто-выбор первой, если ещё ничего не выбрано
-                    const first = restored[0];
-                    setSelectedId(first.id);
-                    onSelectCamera && onSelectCamera(first);
-                }
-            }
+            setIpCameras(restored);
+
+            // Update ID counter for next camera
+            const maxId = restored.reduce((m, c) => Math.max(m, c.numericId), 0);
+            nextIdRef.current = maxId + 1;
+
+            // Auto-select the first camera if none is selected
+            const first = restored[0];
+            setSelectedCameraId(first.id);
+            onSelectCamera?.(first);
         } catch {
-            // игнор: битые cookies просто пропускаем
+            console.warn("[CamsPanel] Invalid cookie data, skipping restoration");
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    /** Сообщаем родителю и сохраняем cookies при ЛЮБОМ изменении списка */
+    /* ============================================================
+       Save to cookies + notify parent whenever list changes
+       ============================================================ */
     useEffect(() => {
-        onRegistryChange && onRegistryChange(ipCams);
+        onRegistryChange?.(ipCameras);
 
-        // сохраняем компактно: только нужные поля
-        const compact = ipCams.map(({ name, url, numericId }) => ({ name, url, numericId }));
+        const compact = ipCameras.map(({ name, url, numericId }) => ({
+            name,
+            url,
+            numericId,
+        }));
+
         try {
             setCookie(COOKIE_NAME, JSON.stringify(compact));
         } catch {
-            // если не влезло в 4KB — ничего страшного, просто не перезапишем
+            console.warn("[CamsPanel] Failed to save cameras to cookies");
         }
-    }, [ipCams, onRegistryChange]);
+    }, [ipCameras, onRegistryChange]);
 
-    const handleRowClick = (cam) => {
-        if (cam.id === selectedId) return;
-        setSelectedId(cam.id);
-        onSelectCamera && onSelectCamera(cam);
-    };
+    /* ============================================================
+       Handlers
+       ============================================================ */
 
-    /** Удаление: если удаляем выбранную — переключаемся на другую */
-    const handleDelete = (id) => {
-        setIpCams((prev) => {
-            const next = prev.filter((cam) => cam.id !== id);
+    /** Select camera row */
+    const handleRowClick = useCallback(
+        (camera) => {
+            if (camera.id === selectedCameraId) return;
+            setSelectedCameraId(camera.id);
+            onSelectCamera?.(camera);
+        },
+        [selectedCameraId, onSelectCamera]
+    );
 
-            if (selectedId === id) {
-                const fallback = next[0] || null;
-                setSelectedId(fallback ? fallback.id : null);
-                if (fallback) {
-                    onSelectCamera && onSelectCamera(fallback);
-                } else {
-                    // если список опустел — сообщаем, что выбора нет
-                    onSelectCamera && onSelectCamera(null);
+    /** Delete camera (and reselect another if needed) */
+    const handleDelete = useCallback(
+        (id) => {
+            setIpCameras((prev) => {
+                const next = prev.filter((cam) => cam.id !== id);
+
+                // If deleted camera was selected — pick another one
+                if (selectedCameraId === id) {
+                    const fallback = next[0] || null;
+                    setSelectedCameraId(fallback ? fallback.id : null);
+                    onSelectCamera?.(fallback || null);
                 }
-            }
-            return next;
-        });
-    };
 
-    const addCam = (_ignoredSequential, name, url) => {
-        const trimmedUrl = (url || "").trim();
+                return next;
+            });
+        },
+        [selectedCameraId, onSelectCamera]
+    );
+
+    /** Add new IP camera */
+    const handleAddCamera = useCallback(() => {
+        const trimmedUrl = (urlInput || "").trim();
         if (!trimmedUrl) return;
-        const numericId = ipIdRef.current++;
 
-        const cam = {
+        const numericId = nextIdRef.current++;
+        const newCamera = {
             id: `ip-${numericId}`,
-            name: (name || "").trim() || `IP Camera ${numericId}`,
+            name: (nameInput || "").trim() || `IP Camera ${numericId}`,
             type: "ip",
             url: trimmedUrl,
             numericId,
         };
 
-        setIpCams((prev) => [...prev, cam]);
-        // Выбирать новодобавленную не обязательно; если нужно — раскомментируй:
-        // setSelectedId(cam.id); onSelectCamera && onSelectCamera(cam);
-    };
+        setIpCameras((prev) => [...prev, newCamera]);
+        setNameInput("");
+        setUrlInput("");
+    }, [nameInput, urlInput]);
+
+    /* ============================================================
+       Render
+       ============================================================ */
 
     return (
         <div className="CamsPanel">
+            {/* ------- Add Camera Form ------- */}
             <div className="AddCam">
                 <input
                     className="NameInput"
-                    placeholder="Имя IP-камеры"
-                    value={NameInput}
+                    placeholder="Camera name"
+                    value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                 />
                 <input
                     className="URLInput"
-                    placeholder="URL потока"
-                    value={URLInput}
-                    onChange={(e) => setURLInput(e.target.value)}
+                    placeholder="Stream URL"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
                 />
                 <button
                     className="AddCamButton"
-                    onClick={() => {
-                        addCam(ipCams.length + 1, NameInput || "Безымянная", URLInput);
-                        setNameInput("");
-                        setURLInput("");
-                    }}
-                    title="Добавить IP-камеру"
+                    onClick={handleAddCamera}
+                    title="Add IP camera"
                 >
                     ➕
                 </button>
             </div>
 
-            {ipCams.map((cam) => (
+            {/* ------- Camera List ------- */}
+            {ipCameras.map((cam) => (
                 <CamsRow
                     key={cam.id}
                     id={cam.id}
                     name={`${cam.name} (#${cam.numericId})`}
-                    isSelected={cam.id === selectedId}
+                    isSelected={cam.id === selectedCameraId}
                     onClick={() => handleRowClick(cam)}
                     onDelete={handleDelete}
                 />
