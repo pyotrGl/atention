@@ -2,84 +2,71 @@ import React, { useEffect, useRef, useState } from "react";
 import "./CamsPanel.css";
 import CamsRow from "./CamsRow";
 
-function CamsPanel({ onSelectCamera, onRegistryChange = () => {} }) {
+/**
+ * onRegistryChange(list) – вызывается ТОЛЬКО из useEffect,
+ * чтобы не было "Cannot update a component while rendering".
+ */
+function CamsPanel({ onSelectCamera, onRegistryChange }) {
     const [usbCams, setUsbCams] = useState([]);
     const [ipCams, setIpCams] = useState([]);
     const [NameInput, setNameInput] = useState("");
     const [URLInput, setURLInput] = useState("");
     const [selectedId, setSelectedId] = useState(null);
 
-    // Счётчик для стабильных numericId IP-камер (int для API)
     const ipIdRef = useRef(1);
 
+    // Инициализация USB-камер
     useEffect(() => {
-        // 1) Проверка API
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-            console.warn("Ваш браузер не поддерживает API enumerateDevices.");
+            console.warn("enumerateDevices не поддерживается");
             return;
         }
 
-        // 2) Пытаемся получить доступ, чтобы появились labels (не критично)
-        navigator.mediaDevices
-            .getUserMedia({ video: true })
+        navigator.mediaDevices.getUserMedia({ video: true })
             .then((s) => s.getTracks().forEach((t) => t.stop()))
-            .catch(() => {
-                console.warn("Доступ к камере не предоставлен. Продолжаем без USB-камер.");
-            })
+            .catch(() => console.warn("Доступ к камере не дан — продолжаем без label"))
             .finally(() => {
-                // 3) Всегда пробуем enumerateDevices
-                navigator.mediaDevices
-                    .enumerateDevices()
+                navigator.mediaDevices.enumerateDevices()
                     .then((devices) => {
                         const videoInputs = devices.filter((d) => d.kind === "videoinput");
-
                         const mapped = videoInputs.map((d, idx) => ({
                             id: d.deviceId || `no-id-${idx}`,
                             name: d.label || `USB Camera ${idx + 1}`,
                             type: "usb",
-                            deviceId: d.deviceId,   // важно для getUserMedia(exact)
-                            numericId: 1000 + idx,  // int для camera_id
+                            deviceId: d.deviceId,
+                            numericId: 1000 + idx,
                         }));
-
                         setUsbCams(mapped);
 
-                        // Автовыбор первой доступной USB-камеры с валидным deviceId (ТОЛЬКО при самом первом монтировании)
-                        const firstValid = mapped.find((c) => !!c.deviceId);
-                        if (!selectedId && firstValid) {
-                            setSelectedId(firstValid.id);
-                            onSelectCamera(firstValid);
-                        } else if (!selectedId && mapped.length === 0) {
-                            console.log("USB-камеры не найдены.");
+                        // авто-выбор первой пригодной
+                        const first = mapped.find(c => !!c.deviceId);
+                        if (!selectedId && first) {
+                            setSelectedId(first.id);
+                            onSelectCamera(first);
                         }
                     })
-                    .catch((err) => {
-                        console.error("Ошибка enumerateDevices:", err);
-                    });
+                    .catch((err) => console.error("enumerateDevices error:", err));
             });
-        // ВАЖНО: без зависимостей — не перезапускать на каждую смену onSelectCamera/stream
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 🔸 Отправляем наверх актуальный список камер при любом изменении
+    // Сообщаем родителю об изменениях в реестре (USB + IP)
     useEffect(() => {
-        const all = [...usbCams, ...ipCams];
-        onRegistryChange(all);
+        const list = [...usbCams, ...ipCams];
+        onRegistryChange && onRegistryChange(list);
     }, [usbCams, ipCams, onRegistryChange]);
 
     const handleRowClick = (cam) => {
-        if (cam.id === selectedId) return; // не трогаем уже выбранную
+        if (cam.id === selectedId) return;
         setSelectedId(cam.id);
         onSelectCamera(cam);
     };
 
     const handleDelete = (id) => {
-        // Удаляем только IP
         setIpCams((prev) => {
             const next = prev.filter((cam) => cam.id !== id);
-
-            // Если удалили выбранную IP — выберем первую доступную из объединённого списка
             if (selectedId === id) {
-                const fallback = [...usbCams, ...next].find(Boolean);
+                const fallback = [...usbCams, ...next][0];
                 if (fallback) {
                     setSelectedId(fallback.id);
                     onSelectCamera(fallback);
@@ -101,14 +88,12 @@ function CamsPanel({ onSelectCamera, onRegistryChange = () => {} }) {
             name: (name || "").trim() || `IP Camera ${numericId}`,
             type: "ip",
             url: trimmedUrl,
-            numericId, // int для camera_id
+            numericId,
         };
 
         setIpCams((prev) => [...prev, cam]);
-
-        // (Опционально) автоселект только что добавленной IP-камеры:
-        // setSelectedId(cam.id);
-        // onSelectCamera(cam);
+        // можно авто-выбирать добавленную:
+        // setSelectedId(cam.id); onSelectCamera(cam);
     };
 
     const allCams = [...usbCams, ...ipCams];

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import config from "../../config";
 import VideoPanel from "../components/VideoPanel";
 import LogsPanel from "../components/LogsPanel";
@@ -6,116 +6,154 @@ import CamsPanel from "../components/CamsPanel";
 import "./MainPage.css";
 
 function MainPage() {
-    const wsRef = useRef(null);
-    const reconnectTimerRef = useRef(null);
-
-    // Реестр всех камер (по numericId), приходит из CamsPanel
-    // { [numericId]: { id, name, type: 'usb'|'ip', deviceId?, url?, numericId } }
-    const [cameraRegistry, setCameraRegistry] = useState({});
+    // ===== UI state =====
+    const [cameraRegistry, setCameraRegistry] = useState({}); // { [numericId]: cam }
     const [selectedCameraId, setSelectedCameraId] = useState(null);
+    const [stream, setStream] = useState(null);   // USB stream выбранной
+    const [ipUrl, setIpUrl] = useState(null);     // IP URL выбранной
+    const [boxes, setBoxes] = useState([]);       // детекции выбранной
+    const [logs, setLogs] = useState([]);         // warnings со всех
 
-    // Состояние отображения выбранной камеры в правой панели
-    const [stream, setStream] = useState(null);   // USB
-    const [ipUrl, setIpUrl]   = useState(null);   // IP
+    // ===== refs =====
+    const selectedIdRef = useRef(null);
+    useEffect(() => { selectedIdRef.current = selectedCameraId; }, [selectedCameraId]);
 
-    // Детекции для выбранной камеры
-    const [boxes, setBoxes] = useState([]);
-
-    // Логи предупреждений
-    const [logs, setLogs] = useState([]);
-
-    // Offscreen холст для кодирования base64
     const encodeCanvasRef = useRef(document.createElement("canvas"));
+    const sendersRef = useRef(new Map());           // numericId -> { timer, img? }
+    const lastBoxesByCameraRef = useRef(new Map()); // numericId -> boxes[]
 
-    // Пер-кам (numericId) → sender (таймер и оффскрин элементы)
-    const sendersRef = useRef(new Map());
+    // ===== WS refs & timers =====
+    const wsRef = useRef(null);
+    const wsLockRef = useRef(false);
+    const manualCloseRef = useRef(false);
+    const heartbeatRef = useRef(null);
+    const reconnectTimerRef = useRef(null);
+    const backoffRef = useRef(1000); // 1s..5s
 
-    const TEN_HZ = 100;   // 10 раз/сек
-    const ONE_HZ = 1000;  // 1 раз/сек
+    // ===== constants =====
+    const TEN_HZ = 100;    // выбранная камера
+    const ONE_HZ = 1000;   // невыбранные IP (USB вне выбранной не шлём)
+
+    /* ============ helpers ============ */
+    const parseMaybeNestedJSON = (raw) => {
+        let v;
+        try { v = JSON.parse(raw); } catch { return null; }
+        if (typeof v === "string") {
+            try { v = JSON.parse(v); } catch {}
+        }
+        return v;
+    };
 
     /* =========================
        WebSocket
     ========================= */
+    const clearHeartbeat = () => {
+        if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null; }
+    };
+
     const cleanupWebSocket = useCallback(() => {
-        if (reconnectTimerRef.current) {
-            clearTimeout(reconnectTimerRef.current);
-            reconnectTimerRef.current = null;
-        }
-        if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        clearHeartbeat();
+        if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+        // не закрываем насильно CONNECTING — это и даёт “closed before established”
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             try { wsRef.current.close(); } catch {}
         }
         wsRef.current = null;
+        wsLockRef.current = false;
     }, []);
 
+    const scheduleReconnect = useCallback(() => {
+        if (manualCloseRef.current) return;
+        const delay = Math.min(backoffRef.current, 5000);
+        reconnectTimerRef.current = setTimeout(() => {
+            connectWS();
+            backoffRef.current = Math.min(backoffRef.current * 1.5, 5000);
+        }, delay);
+    }, []); // eslint-disable-line
+
     const connectWS = useCallback(() => {
-        cleanupWebSocket();
-        const ws = new WebSocket(config.videoWS); // wss:///websocket/connect_user
-        wsRef.current = ws;
+        if (wsLockRef.current) return;
+        wsLockRef.current = true;
 
-        ws.onopen = () => {
-            console.log("WS open");
-        };
+        let url = config.videoWS; // должен быть ws(s)://…/websocket/connect_user
+        if (window.location.protocol === "https:" && url.startsWith("ws://")) {
+            url = url.replace(/^ws:\/\//, "wss://");
+        }
 
-        ws.onmessage = ({ data }) => {
-            try {
-                const msg = JSON.parse(data);
+        try {
+            const ws = new WebSocket(url);
+            wsRef.current = ws;
 
-                // labels — рисуем только если это выбранная камера
-                if (msg?.type === "labels" && Number.isInteger(msg.camera_id)) {
-                    if (msg.camera_id === selectedCameraId) {
-                        const mapped = Array.isArray(msg.labels)
-                            ? msg.labels.map(l => ({ name: l.name, x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 }))
-                            : [];
-                        setBoxes(mapped);
+            ws.onopen = () => {
+                wsLockRef.current = false;
+                backoffRef.current = 1000;
+                clearHeartbeat();
+                heartbeatRef.current = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: "ping" }));
                     }
+                }, 25000);
+            };
+
+            ws.onmessage = ({ data }) => {
+                const msg = typeof data === "string" ? parseMaybeNestedJSON(data) : data;
+                if (!msg || typeof msg !== "object") return;
+
+                // labels/boxes
+                if (msg.type === "labels" && Number.isInteger(msg.camera_id)) {
+                    const listRaw = Array.isArray(msg.labels) ? msg.labels : Array.isArray(msg.boxes) ? msg.boxes : [];
+                    const normalized = listRaw.map(l => ({ name: l.name, x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 }));
+                    lastBoxesByCameraRef.current.set(msg.camera_id, normalized);
+                    if (msg.camera_id === selectedIdRef.current) setBoxes(normalized);
                     return;
                 }
 
-                // warning — добавляем в логи и удаляем через 3 сек
-                if (msg?.type === "warning" && Number.isInteger(msg.camera_id)) {
+                // warning -> в лог и удалить через 3с
+                if (msg.type === "warning" && Number.isInteger(msg.camera_id)) {
                     const id = `${msg.camera_id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                     const entry = {
-                        id,
-                        ts: Date.now(),
-                        cameraId: msg.camera_id,
+                        id, ts: Date.now(), cameraId: msg.camera_id,
                         device: `Camera #${msg.camera_id}`,
                         name: msg.object_name,
-                        attention: msg.warning_type, // "error" | "warning"
+                        attention: msg.warning_type, // "warning" | "error"
                     };
                     setLogs(prev => [entry, ...prev]);
-                    setTimeout(() => {
-                        setLogs(prev => prev.filter(x => x.id !== id));
-                    }, 3000);
+                    setTimeout(() => setLogs(prev => prev.filter(x => x.id !== id)), 3000);
                     return;
                 }
-            } catch {
-                // non-JSON — игнор
-            }
-        };
+            };
 
-        ws.onerror = (e) => console.error("WS error:", e);
+            ws.onerror = () => { /* тихо */ };
 
-        ws.onclose = () => {
-            console.log("WS closed, reconnect…");
-            reconnectTimerRef.current = setTimeout(connectWS, 1500);
-        };
-    }, [cleanupWebSocket, selectedCameraId]);
+            ws.onclose = (ev) => {
+                clearHeartbeat();
+                wsRef.current = null;
+                wsLockRef.current = false;
+                if (!manualCloseRef.current && ([1006,1011,1001,1002,1003].includes(ev.code) || !ev.code)) {
+                    scheduleReconnect();
+                }
+            };
+        } catch {
+            wsLockRef.current = false;
+            scheduleReconnect();
+        }
+    }, [cleanupWebSocket, scheduleReconnect]);
 
     useEffect(() => {
+        manualCloseRef.current = false;
         connectWS();
-        return () => cleanupWebSocket();
+        return () => { manualCloseRef.current = true; cleanupWebSocket(); };
     }, [connectWS, cleanupWebSocket]);
 
     /* =========================
-       Helpers: отправка кадров
+       Отправка кадров (JPEG base64)
     ========================= */
     const sendImageBase64 = useCallback((camera_id, base64) => {
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ camera_id: camera_id, image: base64 }));
+        ws.send(JSON.stringify({ camera_id, image: base64 }));
     }, []);
 
-    // Кодирование DOM media -> base64 JPEG (качество 0.7)
     const encodeElementToBase64 = useCallback((el) => {
         const canvas = encodeCanvasRef.current;
         const ctx = canvas.getContext("2d", { willReadFrequently: false });
@@ -124,27 +162,28 @@ function MainPage() {
         const srcH = el.tagName === "VIDEO" ? el.videoHeight : el.naturalHeight;
         if (!srcW || !srcH) return null;
 
-        canvas.width = srcW;
-        canvas.height = srcH;
+        canvas.width = srcW; canvas.height = srcH;
         ctx.drawImage(el, 0, 0, srcW, srcH);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        return dataUrl.split(",")[1]; // чистый base64
+
+        try {
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+            return dataUrl.split(",")[1];
+        } catch (e) {
+            // canvas tainted (CORS)
+            return null;
+        }
     }, []);
 
-    // Создаёт или перезапускает sender для камеры
     const startSender = useCallback((cam, rateMs) => {
-        // Для выбранной USB будем брать кадр из видимого <video>
-        // Для IP — создаём offscreen <img> и периодически тянем кадр
         const map = sendersRef.current;
-        // Остановим, если уже был
         if (map.has(cam.numericId)) {
             const old = map.get(cam.numericId);
             clearInterval(old.timer);
             map.delete(cam.numericId);
         }
 
-        // Если USB и НЕ выбрана — пропустим (обычно USB одна; держим активной только выбранную)
-        if (cam.type === "usb" && cam.numericId !== selectedCameraId) return;
+        // USB: шлём только с выбранной (иначе конфликт gUM)
+        if (cam.type === "usb" && cam.numericId !== selectedIdRef.current) return;
 
         const sender = { timer: null, img: null };
 
@@ -154,49 +193,54 @@ function MainPage() {
 
                 if (cam.type === "usb") {
                     const mediaEl = document.querySelector(".VideoPanel .video-element:not([style*='display: none'])");
-                    if (mediaEl) {
-                        base64 = encodeElementToBase64(mediaEl);
-                    }
+                    if (mediaEl) base64 = encodeElementToBase64(mediaEl);
                 } else if (cam.type === "ip" && cam.url) {
-                    // оффскрин картинка
+                    // Проксируем, чтобы снять CORS (см. config.ipProxy)
+                    const proxied = config.ipProxy
+                        ? `${config.ipProxy}?url=${encodeURIComponent(cam.url)}&_=${Date.now()}`
+                        : cam.url;
+
                     if (!sender.img) {
                         sender.img = new Image();
-                        sender.img.crossOrigin = "anonymous"; // нужен CORS на камере/прокси
+                        sender.img.crossOrigin = "anonymous";
                     }
-                    // cache-bust, если нужно
-                    sender.img.src = cam.url.includes("?") ? `${cam.url}&_=${Date.now()}` : `${cam.url}?_=${Date.now()}`;
-
-                    // ждём загрузку кадра
+                    sender.img.src = proxied.includes("?") ? proxied : `${proxied}?_=${Date.now()}`;
                     await sender.img.decode().catch(() => {});
+
                     if (sender.img.naturalWidth && sender.img.naturalHeight) {
                         base64 = encodeElementToBase64(sender.img);
+                    }
+
+                    // Если base64 всё равно пусто — это CORS (таинт). Сообщим один раз в консоль.
+                    if (!base64 && !sender.warnedCORS) {
+                        sender.warnedCORS = true;
+                        console.warn(
+                            "[IP CAMERA] CORS блокирует чтение пикселей. " +
+                            "Включи прокси на бэке и укажи config.ipProxy, либо раздавай поток с 'Access-Control-Allow-Origin:*'."
+                        );
                     }
                 }
 
                 if (base64) sendImageBase64(cam.numericId, base64);
-            } catch (e) {
-                // если таинт/CORS — просто пропускаем кадр
-                // console.warn("send frame error", e);
+            } catch {
+                /* игнор кадра */
             }
         };
 
         sender.timer = setInterval(tick, rateMs);
         sendersRef.current.set(cam.numericId, sender);
-    }, [encodeElementToBase64, selectedCameraId, sendImageBase64]);
+    }, [encodeElementToBase64, sendImageBase64]);
 
     const stopAllSenders = useCallback(() => {
         const map = sendersRef.current;
-        for (const [, s] of map) {
-            if (s.timer) clearInterval(s.timer);
-        }
+        for (const [, s] of map) if (s.timer) clearInterval(s.timer);
         map.clear();
     }, []);
 
-    // Перезапускаем отправители при изменении реестра/выбранной
+    // перезапуск отправителей при смене реестра/выбранной
     useEffect(() => {
         stopAllSenders();
         const cams = Object.values(cameraRegistry);
-
         for (const cam of cams) {
             const rate = cam.numericId === selectedCameraId ? TEN_HZ : ONE_HZ;
             startSender(cam, rate);
@@ -205,16 +249,17 @@ function MainPage() {
     }, [cameraRegistry, selectedCameraId, startSender, stopAllSenders]);
 
     /* =========================
-       Выбор камеры (для правой панели)
+       Выбор камеры
     ========================= */
     const handleCameraSelection = useCallback((cam) => {
-        setBoxes([]);
-        setSelectedCameraId(Number(cam.numericId));
+        const camId = Number(cam.numericId);
+        setSelectedCameraId(camId);
 
-        // остановим прошлый USB stream
-        if (stream) {
-            try { stream.getTracks().forEach(t => t.stop()); } catch {}
-        }
+        // показать кэш до прихода новых
+        const cached = lastBoxesByCameraRef.current.get(camId);
+        setBoxes(Array.isArray(cached) ? cached : []);
+
+        if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch {} }
         setStream(null);
         setIpUrl(null);
 
@@ -224,37 +269,36 @@ function MainPage() {
                 .then(setStream)
                 .catch(e => console.error("USB getUserMedia error:", e));
         } else if (cam?.type === "ip" && cam.url) {
-            setIpUrl(cam.url);
+            setIpUrl(cam.url); // отображение — напрямую; отправка — через proxy (см. startSender)
         }
     }, [stream]);
 
-    // Чистка stream на размонтировании
     useEffect(() => () => {
-        if (stream) {
-            try { stream.getTracks().forEach(t => t.stop()); } catch {}
-        }
+        if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch {} }
     }, [stream]);
 
     /* =========================
-       Рендер
+       onRegistryChange (из CamsPanel)
     ========================= */
+    const hasInitRef = useRef(false);
+    const onRegistryChange = useCallback((list) => {
+        const dict = {};
+        for (const c of list) if (Number.isInteger(c.numericId)) dict[c.numericId] = c;
+        setCameraRegistry(dict);
+
+        if (!hasInitRef.current && list.length > 0) {
+            hasInitRef.current = true;
+            // выберем первую
+            handleCameraSelection(list[0]);
+        }
+    }, [handleCameraSelection]);
+
     return (
         <div className="MainPage">
             <div className="top-section">
                 <CamsPanel
                     onSelectCamera={handleCameraSelection}
-                    onRegistryChange={(list) => {
-                        // list: массив камер, собираем в словарь по numericId
-                        const dict = {};
-                        for (const c of list) {
-                            if (Number.isInteger(c.numericId)) dict[c.numericId] = c;
-                        }
-                        setCameraRegistry(dict);
-                        // если нет выбранной — выберем первую
-                        if (!selectedCameraId && list[0]) {
-                            handleCameraSelection(list[0]);
-                        }
-                    }}
+                    onRegistryChange={onRegistryChange}
                 />
                 <div className="VideoWrap">
                     <VideoPanel stream={stream} ipUrl={ipUrl} boxes={boxes} />
