@@ -11,7 +11,7 @@ function CamsRow({ id, name, isSelected, onClick, onDelete }) {
             <button
                 className="delete-btn"
                 onClick={(e) => {
-                    e.stopPropagation(); // чтобы клик не выбирал камеру
+                    e.stopPropagation();
                     onDelete(id);
                 }}
             >
