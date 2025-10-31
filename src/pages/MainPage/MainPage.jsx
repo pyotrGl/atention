@@ -5,198 +5,175 @@ import LogsPanel from "../components/LogsPanel";
 import CamsPanel from "../components/CamsPanel";
 import "./MainPage.css";
 
-/* ============================================================
-   Utilities
-   ============================================================ */
-
-/** Safely parse possibly nested JSON */
 const parseMaybeNestedJSON = (raw) => {
     try {
-        let parsed = JSON.parse(raw);
-        if (typeof parsed === "string") parsed = JSON.parse(parsed);
-        return parsed;
+        let v = JSON.parse(raw);
+        if (typeof v === "string") v = JSON.parse(v);
+        return v;
     } catch {
         return null;
     }
 };
 
-/** Generate stable-ish unique id for UI lists */
-const genId = (prefix = "log") =>
-    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-/* ============================================================
-   Main component
-   ============================================================ */
+const genId = (p = "log") => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function MainPage() {
-    /* ------------------ State ------------------ */
     const [selectedCameraId, setSelectedCameraId] = useState(null);
-    const [ipUrl, setIpUrl] = useState(null);
+    const [url, setUrl] = useState(null);
     const [boxes, setBoxes] = useState([]);
     const [logs, setLogs] = useState([]);
+    const [cameraRegistry, setCameraRegistry] = useState({});
 
-    /** Registry of cameras by numericId for quick lookups in logs */
-    const [cameraRegistry, setCameraRegistry] = useState({}); // { [numericId]: {name, url, ...} }
-
-    /* ------------------ Refs ------------------ */
-    const wsRef = useRef(null);
-    const manualCloseRef = useRef(false);
-    const reconnectTimerRef = useRef(null);
-    const backoffRef = useRef(1000);
+    const wsMapRef = useRef(new Map());
     const lastBoxesByCameraRef = useRef(new Map());
+    const cameraRegistryRef = useRef({});
 
-    /* ============================================================
-       WebSocket management
-       ============================================================ */
-
-    /** Send payload to WS if open */
-    const sendToWS = useCallback((payload) => {
-        const ws = wsRef.current;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(payload));
-        }
+    const sendOnWS = useCallback((cameraId, payload) => {
+        const ws = wsMapRef.current.get(cameraId);
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
     }, []);
 
-    /** Reconnect with capped backoff */
-    const scheduleReconnect = useCallback(() => {
-        if (manualCloseRef.current) return;
-        const delay = Math.min(backoffRef.current, 5000);
-        reconnectTimerRef.current = setTimeout(() => {
-            connectWS();
-            backoffRef.current = Math.min(backoffRef.current * 1.5, 5000);
-        }, delay);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    /** Open WS and wire handlers */
-    const connectWS = useCallback(() => {
-        let wsUrl = config.videoWS;
-        if (window.location.protocol === "https:" && wsUrl.startsWith("ws://")) {
-            wsUrl = wsUrl.replace(/^ws:\/\//, "wss://");
-        }
-
-        try {
+    const openWS = useCallback(
+        (camera) => {
+            if (!camera?.numericId || wsMapRef.current.has(camera.numericId)) return;
+            let wsUrl = config.videoWS;
+            if (window.location.protocol === "https:" && wsUrl.startsWith("ws://")) {
+                wsUrl = wsUrl.replace(/^ws:\/\//, "wss://");
+            }
             const ws = new WebSocket(wsUrl);
-            wsRef.current = ws;
+            wsMapRef.current.set(camera.numericId, ws);
 
             ws.onopen = () => {
-                console.log("[WS] Connected");
-                backoffRef.current = 1000;
+                ws.send(JSON.stringify({ type: "url", camera_id: camera.numericId, camera_url: camera.url }));
+                const isActive = selectedCameraId === camera.numericId;
+                ws.send(JSON.stringify({ type: "status", status: isActive ? "active" : "not_active" }));
             };
 
             ws.onmessage = ({ data }) => {
                 const msg = typeof data === "string" ? parseMaybeNestedJSON(data) : data;
                 if (!msg || typeof msg !== "object") return;
 
-                // === labels ===
                 if (msg.type === "labels" && Number.isInteger(msg.camera_id)) {
-                    const labelList = Array.isArray(msg.labels) ? msg.labels : [];
-                    lastBoxesByCameraRef.current.set(msg.camera_id, labelList);
-                    if (msg.camera_id === selectedCameraId) setBoxes(labelList);
+                    const list = Array.isArray(msg.labels) ? msg.labels : [];
+                    lastBoxesByCameraRef.current.set(msg.camera_id, list);
+                    if (msg.camera_id === selectedCameraId) setBoxes(list);
                     return;
                 }
 
-                // === warning ===
                 if (msg.type === "warning") {
-                    // camera_id may be absent for now; handle both cases
                     const camId = Number.isInteger(msg.camera_id) ? msg.camera_id : null;
-                    const deviceName =
-                        (camId && cameraRegistry[camId]?.name) ||
-                        (camId ? `Camera #${camId}` : "Unknown device");
-
+                    const device =
+                        (camId && cameraRegistryRef.current[camId]?.name) || (camId ? `Camera #${camId}` : "Unknown device");
                     const entry = {
                         id: genId("warn"),
                         ts: Date.now(),
                         cameraId: camId,
-                        device: deviceName,
+                        device,
                         name: msg.object_name ?? "Unknown object",
                         attention: msg.warning_type ?? "warning",
                     };
-
                     setLogs((prev) => [entry, ...prev]);
-                    setTimeout(() => {
-                        setLogs((prev) => prev.filter((x) => x.id !== entry.id));
-                    }, 3000);
-                    return;
+                    setTimeout(() => setLogs((prev) => prev.filter((x) => x.id !== entry.id)), 3000);
                 }
             };
 
-            ws.onerror = () => console.warn("[WS] Error");
             ws.onclose = () => {
-                console.warn("[WS] Closed — scheduling reconnect");
-                wsRef.current = null;
-                scheduleReconnect();
+                const cur = wsMapRef.current.get(camera.numericId);
+                if (cur === ws) wsMapRef.current.delete(camera.numericId);
             };
-        } catch (err) {
-            console.error("[WS] Connect error:", err);
-            scheduleReconnect();
+
+            ws.onerror = () => {};
+        },
+        [selectedCameraId]
+    );
+
+    const closeWS = useCallback((cameraId) => {
+        const ws = wsMapRef.current.get(cameraId);
+        if (ws) {
+            try {
+                ws.close();
+            } catch {}
+            wsMapRef.current.delete(cameraId);
         }
-    }, [scheduleReconnect, selectedCameraId, cameraRegistry]);
-
-    /** Mount/unmount lifecycle */
-    useEffect(() => {
-        manualCloseRef.current = false;
-        connectWS();
-        return () => {
-            manualCloseRef.current = true;
-            if (wsRef.current) wsRef.current.close();
-            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-        };
-    }, [connectWS]);
-
-    /* ============================================================
-       Camera selection
-       ============================================================ */
+    }, []);
 
     const handleCameraSelection = useCallback(
         (camera) => {
-            if (!camera) return;
+            const prevId = selectedCameraId;
+
+            if (!camera) {
+                if (prevId != null) sendOnWS(prevId, { type: "status", status: "not_active" });
+                setSelectedCameraId(null);
+                setUrl(null);
+                setBoxes([]);
+                return;
+            }
 
             const cameraId = camera.numericId;
+            if (prevId != null && prevId !== cameraId) sendOnWS(prevId, { type: "status", status: "not_active" });
+            if (!wsMapRef.current.has(cameraId)) openWS(camera);
+
             setSelectedCameraId(cameraId);
-            setIpUrl(camera.url);
-
-            // show cached boxes until fresh labels arrive
-            const cachedBoxes = lastBoxesByCameraRef.current.get(cameraId) || [];
-            setBoxes(cachedBoxes);
-
-            // notify backend
-            sendToWS({ type: "url", camera_id: cameraId, camera_url: camera.url });
-            sendToWS({ type: "status", status: "active" });
+            setUrl(camera.url);
+            setBoxes(lastBoxesByCameraRef.current.get(cameraId) || []);
+            sendOnWS(cameraId, { type: "status", status: "active" });
         },
-        [sendToWS]
+        [selectedCameraId, sendOnWS, openWS]
     );
 
-    /* ============================================================
-       Registry updates from CamsPanel
-       ============================================================ */
+    const handleRegistryChange = useCallback(
+        (list) => {
+            const nextDict = {};
+            for (const c of list || []) if (Number.isInteger(c.numericId)) nextDict[c.numericId] = c;
 
-    const handleRegistryChange = useCallback((list) => {
-        // list: array of cams with numericId, name, url...
-        const dict = {};
-        for (const c of list || []) {
-            if (Number.isInteger(c.numericId)) {
-                dict[c.numericId] = c;
+            const prevDict = cameraRegistryRef.current;
+            const prevIds = new Set(Object.keys(prevDict).map((k) => Number(k)));
+            const nextIds = new Set(Object.keys(nextDict).map((k) => Number(k)));
+
+            for (const id of nextIds) if (!prevIds.has(id)) openWS(nextDict[id]);
+            for (const id of prevIds) if (!nextIds.has(id)) closeWS(id);
+
+            cameraRegistryRef.current = nextDict;
+            setCameraRegistry(nextDict);
+
+            if (selectedCameraId != null && !nextIds.has(selectedCameraId)) {
+                const firstId = [...nextIds][0];
+                if (firstId != null) {
+                    const cam = nextDict[firstId];
+                    setSelectedCameraId(firstId);
+                    setUrl(cam.url);
+                    setBoxes(lastBoxesByCameraRef.current.get(firstId) || []);
+                    sendOnWS(firstId, { type: "status", status: "active" });
+                } else {
+                    setSelectedCameraId(null);
+                    setUrl(null);
+                    setBoxes([]);
+                }
             }
-        }
-        setCameraRegistry(dict);
-    }, []);
+        },
+        [openWS, closeWS, selectedCameraId, sendOnWS]
+    );
 
-    /* ============================================================
-       Render
-       ============================================================ */
+    useEffect(() => {
+        const map = wsMapRef.current;
+        return () => {
+            for (const [, ws] of map.entries()) {
+                try {
+                    ws.close();
+                } catch {}
+            }
+            map.clear();
+        };
+    }, []);
 
     return (
         <div className="MainPage">
             <div className="top-section">
-                <CamsPanel
-                    onSelectCamera={handleCameraSelection}
-                    onRegistryChange={handleRegistryChange}
-                />
+                <CamsPanel onSelectCamera={handleCameraSelection} onRegistryChange={handleRegistryChange} />
                 <div className="VideoWrap">
-                    <VideoPanel ipUrl={ipUrl} boxes={boxes} />
+                    <VideoPanel url={url} boxes={boxes} />
                 </div>
             </div>
-
             <div className="bottom-section">
                 <LogsPanel objects={logs} />
             </div>

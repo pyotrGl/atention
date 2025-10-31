@@ -3,13 +3,11 @@ import "./CamsRow.css";
 
 function CamsRow({ id, name, isSelected, onClick, onDelete }) {
     return (
-        <div
-            className={`CamsRow ${isSelected ? "selected" : ""}`}
-            onClick={onClick}
-        >
+        <div className={`CamsRow ${isSelected ? "selected" : ""}`} onClick={onClick}>
             <label className="name">{name}</label>
             <button
                 className="delete-btn"
+                type="button"
                 onClick={(e) => {
                     e.stopPropagation();
                     onDelete(id);

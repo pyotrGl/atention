@@ -1,10 +1,6 @@
 import React from "react";
 import "./LogRow.css";
 
-/**
- * Single row for the logs table.
- * When isTitle=true, renders header styling.
- */
 function LogRow({ device, name, attention, isTitle = false }) {
     if (isTitle) {
         return (
