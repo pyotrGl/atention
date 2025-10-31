@@ -22,7 +22,7 @@ function MainPage() {
     const [url, setUrl] = useState(null);
     const [boxes, setBoxes] = useState([]);
     const [logs, setLogs] = useState([]);
-    const [cameraRegistry, setCameraRegistry] = useState({});
+    const [, setCameraRegistry] = useState({});
 
     const wsMapRef = useRef(new Map());
     const lastBoxesByCameraRef = useRef(new Map());
@@ -54,7 +54,14 @@ function MainPage() {
                 if (!msg || typeof msg !== "object") return;
 
                 if (msg.type === "labels" && Number.isInteger(msg.camera_id)) {
-                    const list = Array.isArray(msg.labels) ? msg.labels : [];
+                    const raw = Array.isArray(msg.labels) ? msg.labels : Array.isArray(msg.boxes) ? msg.boxes : [];
+                    const list = raw.map((b) => ({
+                        name: b.name ?? "",
+                        x1: Number(b.x1) || 0,
+                        y1: Number(b.y1) || 0,
+                        x2: Number(b.x2) || 0,
+                        y2: Number(b.y2) || 0,
+                    }));
                     lastBoxesByCameraRef.current.set(msg.camera_id, list);
                     if (msg.camera_id === selectedCameraId) setBoxes(list);
                     return;
